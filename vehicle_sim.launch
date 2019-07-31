@@ -1,0 +1,37 @@
+<launch>
+
+    <!-- default args -->
+      <arg name="use_gui" default="false" />
+    <arg name="use_hmi" default="false" />
+    <arg name="nav_verbose" default="false" />
+    <arg name="verbose" default="false" />
+    <arg name="pilot_verbose" default="false" />
+    <arg name="ctrl_config" default="sliding_open_loop.yaml" />
+    <arg name="frame_child" default="sphere_a" />
+    <arg name="frame_odom" default="map" />
+    <arg name="trajectory_source_frame_name" default="/sphere_a"/>
+    <arg name="trajectory_update_rate" default="4 "/>
+    <arg name="trajectory_publish_rate" default="0.25"/>
+    <arg name="veh_name" default="sphere_a"/>
+
+    <!-- load the simulation config -->
+    <rosparam command="load" file="$(find simulator)/conf/simulation_nav.yaml"/>
+    <rosparam command="load" file="$(find simulator)/conf/real_model.yaml"/>
+
+
+    <!-- start the navigation simulator -->
+    <node name="nav_sim" pkg="simulator" type="node_sim.py" output="screen">
+        <!-- sim_rate: publish rate of nav messages (default: 20 Hz) -->
+        <param name="sim_rate" value="10"/>
+        <param name="pub_rate" value="10"/>
+
+        <param name="verbose" value="$(arg verbose)" type="bool"/>
+
+        <!-- odometry configuration (defaults are used for single vehicle operations) -->
+        <!-- <param name="topic_odom" value="nav/odometry"/> -->
+        <param name="frame_parent" value="world"/>
+        <param name="frame_odom" value="$(arg frame_odom)"/>
+        <param name="frame_child" value="$(arg frame_child)"/>
+    </node>
+
+</launch>
