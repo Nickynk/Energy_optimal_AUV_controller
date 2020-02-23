@@ -48,6 +48,7 @@ import traceback
 import numpy as np
 import PyKDL
 import numpy.linalg as npl
+import math
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -60,7 +61,8 @@ import tf2_geometry_msgs
 import tf
 
 from auv_msgs.msg import NavSts
-from std_srvs.srv import Empty, Trigger, TriggerResponse
+#from std_srvs.srv import Empty, Trigger, TriggerResponse
+from std_srvs.srv import Empty
 from std_msgs.msg import Float64MultiArray, Int32
 from nav_msgs.msg import Odometry
 
@@ -93,7 +95,7 @@ S_START = 1
 #}
 
 # ros topics
-TOPIC_NAV = '/vrpn_client_1521236411947584390/estimated_odometry'
+TOPIC_NAV = '/vrpn_client/estimated_odometry'
 TOPIC_EKF = '/sphere_a/nav/pose_estimation'
 TOPIC_PRESSURE = '/sphere_a/nav_sensors/pressure_sensor'
 TOPIC_IMU = '/sphere_a/nav_sensors/imu'
@@ -145,9 +147,12 @@ velocity from vehicle poses using extened Kalman filter.
         self.pub_ekf = rospy.Publisher(TOPIC_EKF, Odometry, tcp_nodelay=True, queue_size=1)
 
        # ros service for command ekf
-        self.s_start = rospy.Service(SRV_START, Trigger, self.srv_start_ekf)
-        self.s_stop = rospy.Service(SRV_STOP, Trigger, self.srv_stop_ekf)
-        self.s_restart = rospy.Service(SRV_RESTART, Trigger, self.srv_restart_ekf)
+        #self.s_start = rospy.Service(SRV_START, Trigger, self.srv_start_ekf)
+        #self.s_stop = rospy.Service(SRV_STOP, Trigger, self.srv_stop_ekf)
+        #self.s_restart = rospy.Service(SRV_RESTART, Trigger, self.srv_restart_ekf)
+        self.s_start = rospy.Service(SRV_START, Empty, self.srv_start_ekf)
+        self.s_stop = rospy.Service(SRV_STOP, Empty, self.srv_stop_ekf)
+        self.s_restart = rospy.Service(SRV_RESTART, Empty, self.srv_restart_ekf)
 
 
         # init params for EKF ##################################################
@@ -171,17 +176,16 @@ velocity from vehicle poses using extened Kalman filter.
         self.sys_v = np.eye(self.pose_size) # Jacobian for observastion noise
 
         # Model parameter for estimating the acceleration
-        #self.Xu = 11.686; self.Yv = 21.645; self.Nr = 0.158; self.Zw = 21.645; self.Kp = 0.158; self.Mq = 0.158;
-        self.Xu = 48.17; self.Yv = 4.11; self.Nr = 4.11; self.Zw = 4.11; self.Kp = 48.17; self.Mq = 4.11;
+        self.Xu = 19.0; self.Yv = 10.0; self.Nr = 1.0; self.Zw = 4.11; self.Kp = 48.17; self.Mq = 4.11;
         self.D_back = 0.1694; self.m = 20.42; self.L = 1; self.rad = 0.1; self.rho_water = 1025;
         self.xg = 0; self.yg = 0; self.xb = 0; self.yb = 0; self.zb = -0.009; self.zg = 0.00178;
         self.W = 200.116; self.B = 201.586; self.Ixx = 0.12052; self.Iyy = 0.943099; self.Izz = 1.006087; 
-        self.Xu_dot = - 0.1 * self.m; 
-        self.Yv_dot = - np.pi * self.rho_water * self.rad**2 * self.L;
+        self.Xu_dot = - 60.0; 
+        self.Yv_dot = - 20.0;
         self.Zw_dot = - np.pi * self.rho_water * self.rad**2 * self.L;
         self.Kp_dot = - np.pi * self.rho_water * self.rad**4 * 0.25;
         self.Mq_dot = - np.pi * self.rho_water * self.rad**2 * self.L**3 /12;
-        self.Nr_dot = - np.pi * self.rho_water * self.rad**2 * self.L**3 /12; 
+        self.Nr_dot = - 2.0; 
 
     # Normalize the angle to -pi to pi
     def wraptopi(self,x):
@@ -193,9 +197,9 @@ velocity from vehicle poses using extened Kalman filter.
         T_surge = Tsum; M_yaw = Tsub
         uu = mu[6]; v = mu[7]; w = mu[8]; p = mu[9]; q = mu[10]; r = mu[11]
         phi = mu[3]; theta = mu[4]; psi = mu[5]; input_u = np.zeros((len(mu),1))
-        input_u[6] = (v*r*self.m - self.Xu*np.abs(uu)*uu+ T_surge)/(self.m-self.Xu_dot)
-        input_u[7] = (- uu*r*self.m - self.Yv*np.abs(v)*v)/(self.m-self.Yv_dot)
-        input_u[11] = (- self.Nr*np.abs(r)*r + M_yaw)/(self.Izz-self.Nr_dot)
+        input_u[6] = (v*r*self.m - self.Xu*uu+ T_surge)/(self.m-self.Xu_dot)
+        input_u[7] = (- uu*r*self.m - self.Yv*v)/(self.m-self.Yv_dot)
+        input_u[11] = (- self.Nr*r + M_yaw)/(self.Izz-self.Nr_dot)
         return input_u
 
     # Compute the rotation matrix from current state
@@ -298,6 +302,30 @@ velocity from vehicle poses using extened Kalman filter.
         self.pos[5] = self.yaw  
         self.pos[3:6] = cnv.wrap_pi(self.pos[3:6])
 
+        """
+        # Handle the issue of vehicle flip at 90 degrees
+        if abs(self.pos[3]) > math.pi*0.5 or abs(self.pos[4]) >math.pi*0.5:
+
+            if self.pos[3] > math.pi*0.5:
+                self.pos[3] = math.pi-self.pos[3]
+            else:
+                self.pos[3] = -math.pi-self.pos[3]
+
+            if self.pos[4] > math.pi*0.5:
+                self.pos[4] = math.pi-self.pos[4]
+            else:
+                self.pos[4] = -math.pi-self.pos[4]
+
+            #self.pos[3] = 0.0
+            #self.pos[4] = 0.0
+ 
+            if self.pos[5] >= 0:
+                self.pos[5] = (math.pi*0.5-self.pos[5])+math.pi*0.5
+            else:
+                self.pos[5] = (-math.pi*0.5-self.pos[5])-math.pi*0.5
+            print self.pos
+        """
+
         self.vel = np.array([
             data.twist.twist.linear.x,
             data.twist.twist.linear.y,
@@ -332,12 +360,14 @@ velocity from vehicle poses using extened Kalman filter.
     def srv_start_ekf(self,request):
         # enable ekf
         self.ekf_status = EKF_ENABLED
-        return TriggerResponse(success=True,message="start ekf successfully")
+        return []
+        #return TriggerResponse(success=True,message="start ekf successfully")
 
     def srv_stop_ekf(self,request):
         # stop ekf
         self.ekf_status = EKF_DISABLED
-        return TriggerResponse(success=True,message="stop ekf successfully")
+        #return TriggerResponse(success=True,message="stop ekf successfully")
+        return []
 
     def srv_restart_ekf(self,request):
         # restart
@@ -345,7 +375,8 @@ velocity from vehicle poses using extened Kalman filter.
             self.ekf_status = EKF_DISABLED
             rospy.sleep(2)
             self.ekf_status = EKF_ENABLED
-        return TriggerResponse(success=True,message="restart ekf successfully")
+        #return TriggerResponse(success=True,message="restart ekf successfully")
+        return []
 
     def loop(self):
         # thruster command
@@ -362,18 +393,18 @@ velocity from vehicle poses using extened Kalman filter.
 
                 self.vel_EKF = [self.mu[6][0],self.mu[7][0],self.mu[8][0],self.mu[9][0],self.mu[10][0],self.mu[11][0]]
                 self.pos_EKF = [self.mu[0][0],self.mu[1][0],self.mu[2][0],self.mu[3][0],self.mu[4][0],self.mu[5][0]]
-                rospy.loginfo("EKF for state estimation")
-                rospy.loginfo("OptiTrack Position %s", self.pos)
-                rospy.loginfo("Estimated position %s", self.pos_EKF)
-                rospy.loginfo("Estimated velocity %s", self.vel_EKF)
+                #rospy.loginfo("EKF for state estimation")
+                #rospy.loginfo("OptiTrack Position %s", self.pos)
+                #rospy.loginfo("Estimated position %s", self.pos_EKF)
+                #rospy.loginfo("Estimated velocity %s", self.vel_EKF)
 
         if self.ekf_status == EKF_DISABLED:
                 self.mu = np.concatenate((np.reshape(self.pos,(6,1)),np.zeros((6,1))),axis=0)
                 self.Sigma = self.ini_sig*np.eye(self.st_size)
                 self.vel_EKF = np.zeros(6)
                 self.cnt = 0
-                rospy.loginfo("No ekf estimation")
-                rospy.loginfo("Position %s", self.pos)
+                #rospy.loginfo("No ekf estimation")
+                #rospy.loginfo("Position %s", self.pos)
 
         # send back state estimate
         self.send_ekf()
@@ -388,7 +419,7 @@ velocity from vehicle poses using extened Kalman filter.
             self.loop()
             # rospy.loginfo('%s: pilot runing ...', self.name)
             self.cnt = self.cnt + 1
-            rospy.loginfo("In the EKF loop ####################")
+            #rospy.loginfo("In the EKF loop ####################")
 
             try:
                 self.ekf_loop.sleep()
