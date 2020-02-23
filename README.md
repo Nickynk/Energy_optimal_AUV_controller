@@ -5,6 +5,7 @@ In this project, the objective is to prolong the endurance of autonomous underwa
 - Numpy
 - ROS
 - CasADi
+- Ipopt
 
 # References
 1. Yang, Niankai, et al. "Real-time model predictive control for energy management in autonomous underwater vehicle." 2018 IEEE Conference on Decision and Control (CDC). IEEE, 2018.
