@@ -1,4 +1,4 @@
-# Describution
+# Describtion
 In this project, the objective is to prolong the endurance of autonomous underwater vehicles with advanced energy-optimal control design. The code includes the implementation and design details for the energy-optimal controller developed based on model predictive control framework. 
 
 For more details about the implementation, please refer to open-source code under the controller directory (branch energy-optimal-control) available at https://bitbucket.org/account/user/droplabumich/projects/SPSF. 
