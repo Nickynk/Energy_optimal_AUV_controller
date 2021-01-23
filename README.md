@@ -10,6 +10,6 @@ For more details about the implementation, please refer to open-source code unde
 - Ipopt
 
 # References
-1. Yang, Niankai, et al. "Real-time model predictive control for energy management in autonomous underwater vehicle." 2018 IEEE Conference on Decision and Control (CDC). IEEE, 2018.
-2. Yang, Niankai, et al. "Energy Management for Autonomous Underwater Vehicles using Economic Model Predictive Control." 2019 American Control Conference (ACC). IEEE, 2019.
-3. Yang, Niankai, et al. "Robust Energy-optimal Path Following Control for Autonomous Underwater Vehicles in Ocean Currents." 2020 American Control Conference (ACC). IEEE, 2020.
+1. Yang, Niankai, et al. "Real-time model predictive control for energy management in autonomous underwater vehicle." IEEE Conference on Decision and Control (CDC). IEEE, 2018.
+2. Yang, Niankai, et al. "Energy Management for Autonomous Underwater Vehicles using Economic Model Predictive Control." American Control Conference (ACC). IEEE, 2019.
+3. Yang, Niankai, et al. "Robust Energy-optimal Path Following Control for Autonomous Underwater Vehicles in Ocean Currents." American Control Conference (ACC). IEEE, 2020.
